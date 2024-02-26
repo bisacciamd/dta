@@ -16,14 +16,16 @@ params:
   year: "2023"
 editor_options: 
   chunk_output_type: console
-server: shiny
+#server: shiny
+filters:
+  - shinylive
 ---
 
 ```{r}
 #| context: setup
 #| label: load-packages
 #| message: false
-
+#| standalone: true
 library(ggplot2)
 library(tidyverse)
 library(readxl)
@@ -32,6 +34,7 @@ library(DT)
 library(gt)
 library(dplyr)
 library(riskyr)
+library(shiny)
 theme_set(theme_light(base_size = 30, base_family = "Atkinson Hyperlegible"))
 pal <- init_pal(riskyr::pal_rgb)
 ```
