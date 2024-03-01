@@ -1,32 +1,30 @@
 ---
-title: "Diagnostic test accuracy dashboard"
-author: G.Bisaccia
+title: "Diagnostic test assessment"
+#author: G.Bisaccia
 format: 
   dashboard:
-    nav-buttons: [github, twitter]
-    github: https://github.com/
+    nav-buttons: 
+      - twitter
+      - icon: github
+        href: https://github.com/giandomd
+        aria-label: GitHub
     orientation: rows
     scrolling: false
 logo: images/logo.png
 theme: journal
 fig-width: 10
 fig-asp: 0.3
-params:
-  month: "October"
-  year: "2023"
 editor_options: 
   chunk_output_type: console
-#server: shiny
-filters:
-  - shinylive
+server: shiny
 ---
 
 ```{r}
 #| context: setup
 #| label: load-packages
 #| message: false
-#| standalone: true
 library(ggplot2)
+library(ggthemes)
 library(tidyverse)
 library(readxl)
 library(scales)
@@ -34,8 +32,7 @@ library(DT)
 library(gt)
 library(dplyr)
 library(riskyr)
-library(shiny)
-theme_set(theme_light(base_size = 30, base_family = "Atkinson Hyperlegible"))
+library(extrafont)
 pal <- init_pal(riskyr::pal_rgb)
 ```
 
@@ -44,7 +41,8 @@ pal <- init_pal(riskyr::pal_rgb)
 ```{r}
 textInput('cond', 'Condition',value = 'CAD')
 textInput('pop', 'Population',value = 'Stable angina')
-textInput('test', 'Test name',value = 'ETT')
+textInput('test', 'Index test',value = 'ETT')
+textInput('ref', 'Reference standard',value = 'ICA')
 numericInput('sample', 'Sample size', 
             min=1,
             value=100, 
@@ -64,9 +62,16 @@ numericInput('prev', 'Disease prevalence (%)',
             step=0.1)
 ```
 
-# Metrics
+::: {.callout-note collapse="true"}
+## Author
 
-##  {height="50%"}
+Developed by G. Bisaccia, Gabriele D'Annunzio University of Chieti-Pescara, Chieti, Italy [ORCID](https://orcid.org/0000-0003-4606-3093)
+:::
+
+
+# Diagnostic accuracy
+
+##
 
 ```{r}
 library(bslib)
@@ -78,11 +83,7 @@ value_box(
 )
 ```
 
-```{r}
-plotOutput('p4')
-```
-
-##  {height="50%"}
+##
 
 ```{r}
 #value_box(title = "Positive likelihood ratio",value = textOutput("PLR"),showcase = bs_icon("plus-lg"))
@@ -93,39 +94,6 @@ value_box(title = "Risk after positive test",value = textOutput("ptpos"),showcas
 #value_box(title = "Negative likelihood ratio",value = textOutput("NLR"),showcase = bs_icon("dash-lg"))
 value_box(title = "Risk after negative test",value = textOutput("ptneg"),showcase = bs_icon("dash-lg"))
 ```
-
-# Risk scenarios
-
-##  {height="50%"}
-
-```{r}
-library(riskyr)
-plotOutput('p0',)
-```
-
-```{r}
-plotOutput('p1')
-```
-
-##  {height="50%"}
-
-```{r}
-plotOutput('p3')
-```
-
-# Fagan nomogram
-
-```{r}
-plotOutput('pfagan')
-```
-
-# Contingency table
-
-```{r}
-plotOutput('p2')
-```
-
-# Other
 
 ```{r}
 value_box(
@@ -143,15 +111,63 @@ value_box(
 )
 ```
 
+##
+
+```{r}
+#| title: Patient flow diagram
+plotOutput('p0')
+```
+
+```{r}
+#| title: Patients according to test results
+plotOutput('p4')
+```
+
+# Clinical utility
+
+## {height=60%}
+
+```{r}
+plotOutput('pfagan')
+```
+
+
+```{r}
+plotOutput('dca')
+```
+
+## {height=40%}
+### {.toolbar}
+::: callout-tip
+The Fagan nomogram allows to evaluate how a test result affects the probability of a patient having a certain disease. Starting from a given pre-test risk (e.g. disease prevalence among referred patients), a positive (abnormal) test result will (likely) increase the odds, and a negative (normal) test result will decrease the odds, of a patient having the disease. Evaluating such test probabilities against set thresholds for further testing or action (e.g. patients at ≥ 65% risk should *definitely* be tested, or patients at \< 15% risk should definitely avoid testing) allows to evaluate the clinical value of a test. If the test fails to reclassify patients to a higher (or lower) risk category, it is likely to yield very little additional value over the reference standard.
+
+:::
+### {.toolbar}
+::: callout-tip
+Decision curve analysis allows to evaluate the clinical utility of a given test, beyond diagnostic accuracy metrics. It calculates the net benefit of undergoing an index test over a strategy of referring all patients to the reference standard, and over a strategy of no testing. Please provide a clinically meaningful threshold probability range (see [Vickers et al., BMJ 2016](https://doi.org/10.1136/bmj.i6)).
+
+```{r}
+sliderInput("range", "Threshold probability range",
+min = 0, max = 100, value = c(15,65))
+```
+:::
+
+# About
+
+This dashboard allows to evaluate the diagnostic yield and clinical utility of a given test against a reference standard. Provided with metrics of sensitivity, specificity, and sample size and disease prevalence, it calculates accuracy, post-test disease risks, and predictive values. It also shows flow diagrams of patients within the study, and dependence of diagnostic estimates on disease prevalence.
+
+Term definitions and formulas used to derive diagnostic metrics are available at [BMJ Best Practice](https://bestpractice.bmj.com/info/toolkit/learn-ebm/diagnostic-test-studies-assessment-and-critical-appraisal/), which also offers practical tips for evaluating the quality of published diagnostic accuracy studies.
+
+Literature on decision curve analysis for assessment of clinical benefit is available at [http://www.decisioncurveanalysis.org](http://www.decisioncurveanalysis.org).
+
 ```{r}
 #| context: server
 
-library(riskyr)
 output$PLR <- reactive(
   round(ifelse(input$spec==100, no = input$sens/(100-input$spec), yes = 100),digits = 2)
   )
 output$NLR <- reactive(
-  round(ifelse(input$spec==0, no = (100-input$sens)/(input$spec), yes = 100),digits = 2)
+  round(ifelse(input$spec==0, no = (100-input$sens)/(input$spec), yes = 0),digits = 2)
   )
 output$PPV <- reactive(paste(
   round((input$sens*input$prev/(input$sens*input$prev+(100-input$spec)*(100-input$prev)))*100, digits = 1),"%",sep = "")
@@ -273,7 +289,9 @@ output$p3 <- renderPlot(riskyr::riskyr(scen_lbl =
                       N = input$sample
                       ) %>% plot(type='bar', col_pal=riskyr::pal_rgb))
 
-output$p4 <- renderPlot(riskyr::riskyr(scen_lbl = 
+output$p4 <- renderPlot({
+  
+  r <- riskyr::riskyr(scen_lbl = 
                         paste(input$cond, 
                               "reclassification by", 
                               input$test),
@@ -291,40 +309,78 @@ output$p4 <- renderPlot(riskyr::riskyr(scen_lbl =
                       prev = input$prev/100,
                       sens = input$sens/100,
                       spec = input$spec/100, 
-                      N = input$sample
-                      ) %>% plot(type='icon', col_pal=riskyr::pal_rgb))
+                      N = input$sample) %>% plot(type="icon", col_pal=riskyr::pal_rgb)
+                      })
 
-output$pfagan <- renderPlot(data.frame(
+output$pfagan <- renderPlot({
+  data.frame(
   ecg_pos=c(input$prev, 
             (input$prev/(100-input$prev))*
-              ifelse(input$spec==100, no = input$sens/(100-input$spec), yes = 100)/
+              100/
               (1+(input$prev/(100-input$prev))*
-                 ifelse(input$spec==100, no = input$sens/(100-input$spec), yes = 100))*100),
-  ecg_neg=c(input$prev, 
-            (input$prev/(100-input$prev))*
+                 100)*100),
+  ecg_neg=c(input$prev, (input$prev/(100-input$prev))*
               ifelse(input$spec==0, no = (100-input$sens)/(input$spec), yes = 100)/
               (1+(input$prev/(100-input$prev))*
                  ifelse(input$spec==0, no = (100-input$sens)/(input$spec), yes = 100))*100),
-  thres_angio=65,
-  thres_notest=15,
-  time=c(0,1)
+  time = c(0, 1)
 ) %>% ggplot()+
-  geom_rect(aes(xmin = time[1], xmax = time[2], ymin = thres_angio, ymax = 100), alpha=0.05, fill="darkred")+
-  geom_rect(aes(xmin = time[1], xmax = time[2], ymin = 0, ymax = thres_notest), alpha=0.05)+
-  geom_line(aes(x = time, y = ecg_pos), color="darkred", cex=1.1)+
-  geom_line(aes(x = time, y = ecg_neg), color="darkred", linetype="dashed", cex=1.1)+
-  geom_rect(aes(xmin = time[1], xmax = time[2], ymin = thres_angio, ymax = 100), alpha=0.15, fill="darkred")+
-  geom_rect(aes(xmin = time[1], xmax = time[2], ymin = 0, ymax = thres_notest), alpha=0.15)+geom_line(aes(x = time, y = thres_angio),linetype="dashed", color="black")+
-  geom_line(aes(x = time, y = thres_notest),linetype="dashed", color="black")+
+  geom_rect(aes(xmin = time[1], xmax = time[2], ymin = input$range[2], ymax = 100), alpha=0.05, fill="darkred")+
+  geom_rect(aes(xmin = time[1], xmax = time[2], ymin = 0, ymax = input$range[1]), alpha=0.05)+
+  geom_line(aes(x = time, y = ecg_pos), color="#f1184c", cex=1.1)+
+  geom_line(aes(x = time, y = ecg_neg), color="#f1184c", linetype="dashed", cex=1.1)+
+  #geom_rect(aes(xmin = time[1], xmax = time[2], ymin = input$range[2], ymax = 100), alpha=0.15, fill="darkred")+
+  geom_rect(aes(xmin = time[1], xmax = time[2], ymin = 0, ymax = input$range[1]), alpha=0.15)+
+  geom_line(aes(x = time, y = input$range[2]),linetype="dashed", color="black")+
+  geom_line(aes(x = time, y = input$range[1]),linetype="dashed", color="black")+
   ylim(0,100)+
-  ylab("")+
-  xlim(0,1)+
+  ylab(NULL)+
   xlab("")+
-  theme(legend.position = "bottom") +
   scale_x_continuous(breaks = NULL)+
-  theme(panel.grid.major = element_line(color = 'grey', linetype = 'dotted'))+
-    ggtitle(label = "Fagan nomogram",
-      subtitle  = paste(input$test, "Detection of", input$cond, "in patients with", input$pop))
-)
+  coord_fixed(ratio=0.01)+
+  theme_economist_white(gray_bg = F, base_size = 14, base_family = "Atkinson Hyperlegible")+
+  ggtitle(label = "Fagan nomogram\n", subtitle  = paste(input$test, " detection of ", input$cond, " in patients with ", input$pop, ", ", input$ref, " as reference", sep = ""))+
+  scale_y_continuous(name = "Pre-test probability\n", sec.axis = dup_axis(name = "Post-test probability"))#+xlim(0,1))
+})
+
+output$dca <- renderPlot({
+  riskyr_result <- riskyr(prev = input$prev/100, sens = input$sens/100, spec = input$spec/100, N = input$sample)
+  TP <- riskyr_result$hi
+  TN <- riskyr_result$cr
+  FP <- riskyr_result$fa
+  FN <- riskyr_result$mi
+  n <- riskyr_result$N
+
+  seq_range <- seq(input$range[1], input$range[2], by = 0.5)
+  n_values <- numeric(length(seq_range))
+  
+  # Iterate over the chosen interval for p
+  for (i in seq_along(seq_range)) {
+    p <- seq_range[i]
+
+    # Calculate nb using the provided formula
+    nb <- TP / n - (FP) / n * (p / (100 - p))
+    # Update n_values vector with nb
+    n_values[i] <- nb
+  }
+
+  # Plot
+  ggplot() +
+    geom_line(mapping = aes(x = seq_range, 
+                            y = n_values, 
+                            col="index"), linewidth=1.2) +  # test
+    geom_line(mapping = aes(x = c(0, input$prev), y = c(input$prev/100, 0), col="test_all"), linewidth=1.2) +  # treat all
+    geom_line(mapping = aes(x = c(input$range[1], input$range[2]), y = 0, col="test_none"), linewidth=1.2) +  # treat none
+    ylab("Net benefit\n") +
+    xlab("\nThreshold probability (%)") +
+    scale_x_continuous(breaks = seq(input$range[1], input$range[2], 5)) +
+    coord_fixed(ratio = 100, ylim = c(0,0.5), xlim = c(input$range[1], input$range[2])) +
+    ggtitle(paste("Clinical utility of", input$test, "in", input$cond)) +
+    scale_colour_manual(name = 'Strategy', 
+                      values =c('index'='#f1184c','test_all'='black', 'test_none'="#f7dc66"), 
+                      labels = c(input$test, paste(input$ref, "to all"), paste(input$ref, "to none"))) +
+    theme_economist_white(gray_bg = F, base_size = 14, base_family = "Atkinson Hyperlegible")
+})
+
 
 ```
