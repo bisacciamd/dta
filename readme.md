@@ -1,3 +1,2 @@
-# Hello world
-This is my personal github Page. 
-Please find relevant projects at (link)[].
+# Diagnostic test assessment
+The project output is a diagnostic test accuracy and utility dashboard. Provided with metrics of disease prevalence, sensitivity and specificity, the dashboard yields more useful metrics, including overall test accuracy, post-test probabilities, and the net benefit over a reference standard. The dashboard was developed as a Shiny integration to Quarto.
